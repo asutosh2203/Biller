@@ -62,7 +62,7 @@ namespace Biller.Api.Controllers
 
                 // generate JWT
                 var token = _jwtService.GenerateToken(user.Id.ToString(), user.PhoneNumber);
-                return Ok(new { message = "Logged in", token, isNewUser = true });
+                return Ok(new { message = "Logged in", token, isNewUser = true, user });
             }
             catch (Exception ex)
             {
