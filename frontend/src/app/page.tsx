@@ -15,8 +15,6 @@ export default function Home() {
 
   return (
     <main style={{ padding: 32 }}>
-      {/* <h1>Billing & Inventory Dashboard</h1>
-      <p>Backend status: {health?.status}</p> */}
       <Loginform />
     </main>
   );

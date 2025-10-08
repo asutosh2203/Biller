@@ -1,11 +1,16 @@
 "use client";
 import { useState } from "react";
+import { useAppDispatch } from "../store/hooks";
+import { setUser } from "../store/userSlice";
+import { User } from "@/@types";
 
 const PhoneAuthForm = () => {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const dispatch = useAppDispatch();
 
   const handleSendOtp = async () => {
     if (!phone) return alert("Please enter your phone number");
@@ -52,8 +57,14 @@ const PhoneAuthForm = () => {
         res
           .json()
           .then(
-            (data: { isNewUser: boolean; token: string; message: string }) => {
-              if (data.isNewUser){
+            (data: {
+              isNewUser: boolean;
+              token: string;
+              message: string;
+              user: User;
+            }) => {
+              dispatch(setUser({ user: data.user, isNewUser: data.isNewUser }));
+              if (data.isNewUser) {
                 // navigate to onboarding page
               } else {
                 // navigate to dashboard
