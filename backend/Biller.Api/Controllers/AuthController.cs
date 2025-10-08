@@ -1,13 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
-using System;
+using Biller.Api.Services;
+using Biller.Api.Models;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Biller.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(UserService userService, JwtService jwtService) : ControllerBase
     {
+        private readonly UserService _userService = userService;
+        private readonly JwtService _jwtService = jwtService;
+
         // In-memory OTP store for now (replace later with DB or cache)
         private static readonly ConcurrentDictionary<string, (string Otp, DateTime Expiry)> _otpStore = new();
 
@@ -15,7 +20,7 @@ namespace Biller.Api.Controllers
         [HttpPost("send-otp")]
         public IActionResult SendOtp([FromBody] SendOtpRequest request)
         {
-            Console.WriteLine("Phone number:", request.PhoneNumber);
+
             if (string.IsNullOrWhiteSpace(request.PhoneNumber))
                 return BadRequest("Phone number is required.");
 
@@ -33,10 +38,9 @@ namespace Biller.Api.Controllers
 
         // POST: api/auth/verify-otp
         [HttpPost("verify-otp")]
-        public IActionResult VerifyOtp([FromBody] VerifyOtpRequest request)
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request)
         {
-            Console.WriteLine( request.PhoneNumber);
-            Console.WriteLine( request.Otp);
+
             if (!_otpStore.TryGetValue(request.PhoneNumber, out var otpData))
                 return BadRequest("No OTP found. Please request a new one.");
 
@@ -49,7 +53,24 @@ namespace Biller.Api.Controllers
             // Success — clear OTP and issue token (later we’ll add JWT)
             _otpStore.TryRemove(request.PhoneNumber, out _);
 
-            return Ok(new { message = "OTP verified successfully.", token = "dummy-jwt-placeholder" });
+
+            // Create first time user
+            try
+            {
+                User? user = await _userService.GetUserByPhoneAsync(request.PhoneNumber);
+                user ??= await _userService.CreateUserAsync(request.PhoneNumber);
+
+                // generate JWT
+                var token = _jwtService.GenerateToken(user.Id.ToString(), user.PhoneNumber);
+                return Ok(new { message = "Logged in", token, isNewUser = true });
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (optional: use ILogger)
+                Console.WriteLine(ex.Message);
+
+                return StatusCode(500, new { message = "An error occurred while logging in." });
+            }
         }
     }
 

@@ -49,6 +49,17 @@ const PhoneAuthForm = () => {
 
       if (res.ok) {
         alert("OTP verified successfully!");
+        res
+          .json()
+          .then(
+            (data: { isNewUser: boolean; token: string; message: string }) => {
+              if (data.isNewUser){
+                // navigate to onboarding page
+              } else {
+                // navigate to dashboard
+              }
+            }
+          );
       } else {
         alert("Invalid OTP");
       }
@@ -66,6 +77,7 @@ const PhoneAuthForm = () => {
 
         <input
           type="tel"
+          maxLength={10}
           placeholder="Enter phone number"
           className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={phone}
