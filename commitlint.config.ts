@@ -11,4 +11,5 @@ module.exports = {
     "scope-empty": [2, "never"],
     "subject-case": [2, "never", ["start-case", "pascal-case"]],
   },
+  formatter: "@commitlint/format"
 };
