@@ -1,14 +1,8 @@
 "use client";
-import { useState, CSSProperties } from "react";
 import { HashLoader} from "react-spinners";
 type Props = {
   loading: boolean;
   size: number;
-};
-const override: CSSProperties = {
-  display: "block",
-  margin: "0 auto",
-  borderColor: "red",
 };
 
 function Loader({ loading, size }: Props) {

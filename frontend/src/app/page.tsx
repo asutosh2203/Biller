@@ -7,10 +7,8 @@ import { setUser } from "@/store/userSlice";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ClockLoader } from "react-spinners";
 
 export default function Home() {
-  const [health, setHealth] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const dispatch = useAppDispatch();
   const router = useRouter();
