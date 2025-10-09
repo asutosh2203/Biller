@@ -18,5 +18,11 @@ namespace Biller.Api.Services
             await _db.SaveChangesAsync();
             return user;
         }
+
+        public User? GetUserByPhone(string phone)
+        {
+            return _db.Users.FirstOrDefault(u => u.PhoneNumber == phone);
+        }
+
     }
 }

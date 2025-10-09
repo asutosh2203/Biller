@@ -19,7 +19,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:3000", "http://192.168.142.1:3000")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -30,9 +31,8 @@ builder.WebHost.UseUrls("http://localhost:5001");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(Environment.GetEnvironmentVariable("PG_CONNECTION")));
 
-// Register UserService, JwtService for dependency injection
-builder.Services.AddScoped<UserService>();
-builder.Services.AddSingleton<JwtService>();
+// Register services for dependency injection
+builder.Services.AddMyAppServices();
 
 // Setting up JWT for persistent login
 IConfigurationSection jwtSettings = builder.Configuration.GetSection("Jwt");

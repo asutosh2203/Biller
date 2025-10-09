@@ -2,16 +2,20 @@ using Microsoft.AspNetCore.Mvc;
 using Biller.Api.Services;
 using Biller.Api.Models;
 using System.Collections.Concurrent;
-using System.Threading.Tasks;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Biller.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(UserService userService, JwtService jwtService) : ControllerBase
+    public class AuthController(UserService userService, JwtService jwtService, IConfiguration config, RefreshTokenService refreshTokenService) : ControllerBase
     {
         private readonly UserService _userService = userService;
         private readonly JwtService _jwtService = jwtService;
+        private readonly IConfiguration _config = config;
+        private readonly RefreshTokenService _refService = refreshTokenService;
 
         // In-memory OTP store for now (replace later with DB or cache)
         private static readonly ConcurrentDictionary<string, (string Otp, DateTime Expiry)> _otpStore = new();
@@ -53,15 +57,33 @@ namespace Biller.Api.Controllers
             // Success — clear OTP and issue token (later we’ll add JWT)
             _otpStore.TryRemove(request.PhoneNumber, out _);
 
-
-            // Create first time user
             try
             {
                 User? user = await _userService.GetUserByPhoneAsync(request.PhoneNumber);
+
+                // Create first time user
                 user ??= await _userService.CreateUserAsync(request.PhoneNumber);
 
-                // generate JWT
-                var token = _jwtService.GenerateToken(user.Id.ToString(), user.PhoneNumber);
+                // generate and store a refresh token in cookies
+                RefreshToken refreshToken = await _refService.CreateToken(user.Id, Request.Headers.UserAgent.ToString());
+                Response.Cookies.Append("refresh-token", refreshToken.Token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false, // set false only in localhost for testing
+                    SameSite = SameSiteMode.Unspecified,
+                    Expires = DateTime.UtcNow.AddDays(7)
+                });
+
+                // generate JWT and store in cookies
+                string token = _jwtService.GenerateToken(user.Id.ToString(), user.PhoneNumber);
+                Response.Cookies.Append("jwt", token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false, // set false only in localhost for testing
+                    SameSite = SameSiteMode.Unspecified,
+                    Expires = DateTime.UtcNow.AddMinutes(60)
+                });
+
                 return Ok(new { message = "Logged in", token, isNewUser = true, user });
             }
             catch (Exception ex)
@@ -72,6 +94,65 @@ namespace Biller.Api.Controllers
                 return StatusCode(500, new { message = "An error occurred while logging in." });
             }
         }
+
+        // GET: api/auth/me
+        // [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetCurrentUser()
+        {
+            string refreshTokenString = Request.Cookies["refresh-token"]!;
+            string token = Request.Cookies["jwt"]!;
+
+            if (string.IsNullOrEmpty(refreshTokenString))
+                return Unauthorized(new { message = "No token found, please login again" });
+
+            bool isRefreshTokenValid = await _refService.CheckValidity(refreshTokenString);
+            if (isRefreshTokenValid) { return Unauthorized(new { message = "Token expired, please login again" }); }
+
+            if (string.IsNullOrEmpty(token))
+                return Unauthorized(new { message = "No token found" });
+
+            try
+            {
+                var jwtSettings = _config.GetSection("Jwt");
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY")!));
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidAudience = jwtSettings["Audience"],
+                    IssuerSigningKey = key
+                }, out var validatedToken);
+
+                // Extract phone number instead of ID
+                var phone = principal.FindFirst("phone")?.Value;
+
+                if (phone == null)
+                    return Unauthorized(new { message = "Phone number not found in token" });
+
+                // Fetch user from DB
+                var user = _userService.GetUserByPhone(phone);
+
+                if (user == null)
+                    return NotFound(new { message = "User not found" });
+
+                return Ok(user);
+            }
+            catch (SecurityTokenExpiredException)
+            {
+                return Unauthorized(new { message = "Token expired" });
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return Unauthorized(new { message = "Invalid token" });
+            }
+        }
+
     }
 
     // Request models

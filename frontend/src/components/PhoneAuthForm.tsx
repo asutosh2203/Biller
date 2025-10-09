@@ -3,12 +3,15 @@ import { useState } from "react";
 import { useAppDispatch } from "../store/hooks";
 import { setUser } from "../store/userSlice";
 import { User } from "@/@types";
+import { useRouter } from "next/navigation";
 
 const PhoneAuthForm = () => {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const router = useRouter();
 
   const dispatch = useAppDispatch();
 
@@ -50,6 +53,7 @@ const PhoneAuthForm = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber: phone, otp }),
+        credentials: "include",
       });
 
       if (res.ok) {
@@ -66,8 +70,10 @@ const PhoneAuthForm = () => {
               dispatch(setUser({ user: data.user, isNewUser: data.isNewUser }));
               if (data.isNewUser) {
                 // navigate to onboarding page
+                router.push("/onboarding");
               } else {
                 // navigate to dashboard
+                router.push("/dashboard");
               }
             }
           );
