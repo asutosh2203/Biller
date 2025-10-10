@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import { useAppSelector } from "@/store/hooks";
+import { useRouter } from "next/navigation";
+import React, { useState, useMemo, useEffect } from "react";
 
 // --- TypeScript Interfaces for Robustness ---
 
@@ -17,6 +19,7 @@ interface IFormData {
   timeZone: string;
   startingDate: string; // ISO date string YYYY-MM-DD
   marketingPref: boolean;
+  userId: string;
 }
 
 interface IFormOption {
@@ -461,6 +464,9 @@ const StepThree: React.FC<IStepProps> = ({
 // --- Main Application Component (Typed) ---
 
 const Onboarding: React.FC = () => {
+  const router = useRouter();
+  const user = useAppSelector((state) => state.user);
+
   const [currentStep, setCurrentStep] = useState<number>(1);
   const APP_NAME = "Biller";
 
@@ -482,6 +488,7 @@ const Onboarding: React.FC = () => {
     timeZone: "IST",
     startingDate: new Date().toISOString().substring(0, 10), // Default to today
     marketingPref: false,
+    userId: "",
   };
 
   // useState is explicitly typed with IFormData
@@ -497,10 +504,25 @@ const Onboarding: React.FC = () => {
     setCurrentStep((prev) => Math.min(3, prev + 1));
   };
 
-  const handleSubmit = (): void => {
-    console.log("Submitting Onboarding Data to Backend:", formData);
-    console.log("Setup Complete! Ready to hit the main dashboard.");
+  const handleSubmit = async () => {
+    formData.userId = user.currentUser?.id!;
+
     // Implement navigation to the main application
+    try {
+      const res = await fetch("http://localhost:5001/user/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // this sends cookies along with the request
+        body: JSON.stringify(formData),
+      });
+
+      // res.text().then((data) => console.log(data));
+      if (res.ok) {
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   // 3. Render the appropriate step component

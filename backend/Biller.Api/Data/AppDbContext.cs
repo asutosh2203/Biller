@@ -7,6 +7,7 @@ namespace Biller.Api.Data
     {
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+        public DbSet<BusinessProfile> BusinessProfiles { get; set; } = null!;
     }
 
 

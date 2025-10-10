@@ -84,7 +84,7 @@ namespace Biller.Api.Controllers
                     Expires = DateTime.UtcNow.AddMinutes(60)
                 });
 
-                return Ok(new { message = "Logged in", token, isNewUser = true, user });
+                return Ok(new { message = "Logged in", isNewUser = !user.IsOnboarded, user });
             }
             catch (Exception ex)
             {
@@ -107,7 +107,7 @@ namespace Biller.Api.Controllers
                 return Unauthorized(new { message = "No token found, please login again" });
 
             bool isRefreshTokenValid = await _refService.CheckValidity(refreshTokenString);
-            if (isRefreshTokenValid) { return Unauthorized(new { message = "Token expired, please login again" }); }
+            if (!isRefreshTokenValid) { return Unauthorized(new { message = "Token expired, please login again" }); }
 
             if (string.IsNullOrEmpty(token))
                 return Unauthorized(new { message = "No token found" });

@@ -46,8 +46,16 @@ namespace Biller.Api.Services
         {
             var tokenEntry = await _db.RefreshTokens
             .FirstOrDefaultAsync(t => t.Token == refreshToken && !t.Revoked);
+            if (tokenEntry == null)
+            {
+                Console.WriteLine("TOKEN IS NULL SOMEHOW!");
+            }
+            else
+            {
+                Console.WriteLine(tokenEntry.Token + " " + tokenEntry.ExpiresAt);
+            }
 
-            if (tokenEntry == null || tokenEntry.ExpiresAt < DateTime.UtcNow) return false;
+            if (tokenEntry == null || tokenEntry.ExpiresAt < DateTime.UtcNow) return true;
 
             return true;
         }

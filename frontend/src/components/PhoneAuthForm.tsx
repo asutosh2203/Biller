@@ -1,11 +1,15 @@
 "use client";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { useAppDispatch } from "../store/hooks";
 import { setUser } from "../store/userSlice";
 import { User } from "@/@types";
 import { useRouter } from "next/navigation";
 
-const PhoneAuthForm = () => {
+const PhoneAuthForm = ({
+  setCheckingAuth,
+}: {
+  setCheckingAuth: Dispatch<SetStateAction<boolean>>;
+}) => {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -14,6 +18,37 @@ const PhoneAuthForm = () => {
   const router = useRouter();
 
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    // setCheckingAuth(true);
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("http://localhost:5001/api/auth/me", {
+          method: "GET",
+          credentials: "include", // this sends cookies along with the request
+        });
+
+        res.json().then((data) => {
+          if (!data.hasOwnProperty("id")) {
+            return;
+          }
+
+          dispatch(
+            setUser({ currentUser: data, isNewUser: !data.isOnboarded })
+          );
+          data.isOnboarded
+            ? router.push("/dashboard")
+            : router.push("/onboarding");
+        });
+      } catch (err) {
+        console.log(err);
+        // router.push("/");
+      } finally {
+        // setCheckingAuth(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   const handleSendOtp = async () => {
     if (!phone) return alert("Please enter your phone number");
@@ -30,11 +65,7 @@ const PhoneAuthForm = () => {
         setOtpSent(true);
         alert("OTP sent successfully!");
       } else {
-        console.log(
-          res.status,
-          res.text().then((data) => console.log(data)),
-          res.statusText
-        );
+        res.text().then((data) => console.log(data));
         alert("Failed to send OTP");
       }
     } catch (err) {
@@ -67,7 +98,9 @@ const PhoneAuthForm = () => {
               message: string;
               user: User;
             }) => {
-              dispatch(setUser({ user: data.user, isNewUser: data.isNewUser }));
+              dispatch(
+                setUser({ currentUser: data.user, isNewUser: data.isNewUser })
+              );
               if (data.isNewUser) {
                 // navigate to onboarding page
                 router.push("/onboarding");
